@@ -9,23 +9,16 @@ globe.pointOfView({ lat: 0, lng: 0, altitude: 2.5 }, 0);
 globe.controls().autoRotate = false; // Disable automatic rotation
 globe.controls().autoRotateSpeed = 0.5; // Kept for manual control if enabled later
 
-// Load 3D Plane Model
-let planeModel;
-const loader = new THREE.GLTFLoader();
-loader.load('assets/plane.glb', (gltf) => {
-    planeModel = gltf.scene;
-    planeModel.scale.set(0.02, 0.02, 0.02); // Small but visible
-    console.log('Plane model loaded successfully');
-    updatePlanes(); // Update planes once model is loaded
-}, undefined, (error) => {
-    console.error('Error loading plane model:', error);
-    planeModel = new THREE.Mesh(
-        new THREE.SphereGeometry(0.05), // Increased size for visibility
-        new THREE.MeshBasicMaterial({ color: 0xffff00 })
-    );
-    console.log('Using yellow sphere fallback for planes');
-    updatePlanes(); // Update planes with fallback
-});
+// Define a simple yellow triangle geometry
+let triangleGeometry = new THREE.ShapeGeometry([
+    new THREE.Shape()
+        .moveTo(0, 0)
+        .lineTo(0.05, 0.1) // Triangle points
+        .lineTo(0.1, 0)
+        .lineTo(0, 0)
+]);
+let triangleMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+let triangleMesh = new THREE.Mesh(triangleGeometry, triangleMaterial);
 
 // Flight Data Handling
 let flightData = [];
@@ -46,8 +39,8 @@ async function fetchFlightData() {
                 velocity: state[9],
                 true_track: state[10],
             }))
-            .filter(flight => flight.latitude && flight.longitude && flight.baro_altitude)
-            .slice(0, 500); // Limit for performance
+            .filter(flight => flight.latitude && flight.longitude && flight.baro_altitude);
+            // Removed .slice(0, 500) to show all valid flights
         console.log(`Fetched ${flightData.length} flights`, flightData.slice(0, 2));
         updateLiveCount();
         updatePlanes();
@@ -65,14 +58,7 @@ async function fetchFlightData() {
 // Plane Layer
 const planesLayer = globe.customLayerData([])
     .customThreeObject(d => {
-        if (!planeModel) {
-            console.error('Plane model not loaded yet');
-            return new THREE.Mesh(
-                new THREE.SphereGeometry(0.05), // Increased size
-                new THREE.MeshBasicMaterial({ color: 0xffff00 })
-            );
-        }
-        const obj = planeModel.clone();
+        const obj = triangleMesh.clone();
         obj.rotation.y = Math.PI / 2 + (d.true_track * Math.PI / 180);
         console.log('Placed plane at:', d.latitude, d.longitude);
         return obj;
@@ -119,6 +105,8 @@ globe.onObjectClick((obj, event, { lat, lng, altitude }) => {
         console.log('Clicked plane:', flight);
         globe.pointOfView({ lat: flight.latitude, lng: flight.longitude, altitude: 0.3 }, 1000);
         showFlightDetails(flight);
+    } else {
+        console.log('No matching flight found near', lat, lng);
     }
 });
 
@@ -139,8 +127,8 @@ function showFlightDetails(flight) {
     document.getElementById('altitude').textContent = `Altitude: ${(flight.baro_altitude * 3.28084).toFixed(0)} ft`;
     document.getElementById('speed').textContent = `Speed: ${(flight.velocity * 3.6).toFixed(0)} km/h`;
     document.getElementById('heading').textContent = `Heading: ${flight.true_track.toFixed(0)}° (${degreesToCompass(flight.true_track) || 'N/A'})`;
-    document.getElementById('origin').textContent = `Origin: ${flight.origin_country || 'Unknown'}`; // Best available proxy
-    document.getElementById('destination').textContent = `Destination: N/A`; // Not available from OpenSky state API
+    document.getElementById('origin').textContent = `Origin: ${flight.origin_country || 'Unknown'}`; // Proxy for from
+    document.getElementById('destination').textContent = `Destination: N/A`; // Not available from OpenSky
 }
 
 function degreesToCompass(degrees) {
