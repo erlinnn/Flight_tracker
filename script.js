@@ -20,7 +20,7 @@ loader.load('assets/plane.glb', (gltf) => {
 }, undefined, (error) => {
     console.error('Error loading plane model:', error);
     planeModel = new THREE.Mesh(
-        new THREE.SphereGeometry(0.03), // Larger yellow fallback
+        new THREE.SphereGeometry(0.05), // Increased size for visibility
         new THREE.MeshBasicMaterial({ color: 0xffff00 })
     );
     console.log('Using yellow sphere fallback for planes');
@@ -68,7 +68,7 @@ const planesLayer = globe.customLayerData([])
         if (!planeModel) {
             console.error('Plane model not loaded yet');
             return new THREE.Mesh(
-                new THREE.SphereGeometry(0.03),
+                new THREE.SphereGeometry(0.05), // Increased size
                 new THREE.MeshBasicMaterial({ color: 0xffff00 })
             );
         }
@@ -78,8 +78,9 @@ const planesLayer = globe.customLayerData([])
         return obj;
     })
     .customThreeObjectUpdate((obj, d) => {
-        // Use manual positioning since setObjLatLngAlt is unavailable
-        const { x, y, z } = globe.getCoords(d.latitude, d.longitude, d.baro_altitude / 500000);
+        // Adjust altitude scaling for better visibility
+        const altitude = d.baro_altitude ? d.baro_altitude / 100000 : 0.01; // Reduced divisor
+        const { x, y, z } = globe.getCoords(d.latitude, d.longitude, altitude);
         obj.position.set(x, y, z);
         obj.rotation.y = Math.PI / 2 + (d.true_track * Math.PI / 180); // Update rotation
     });
