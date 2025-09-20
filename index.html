@@ -1,22 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flight Tracker</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://unpkg.com/three/build/three.min.js"></script>
-  <script src="https://unpkg.com/globe.gl"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Tracker Globe</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/three@0.126.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/globe.gl@2.26.0/dist/globe.gl.min.js"></script>
+    <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
-  <h1>🌍 Live Flight Tracker</h1>
-  <div id="globeViz"></div>
-  <div id="weather">
-    <h2>Weather Info</h2>
-    <input type="text" id="cityInput" placeholder="Enter city...">
-    <button onclick="getWeather()">Get Weather</button>
-    <div id="weatherResult"></div>
-  </div>
-  <script src="script.js"></script>
+    <div id="globeViz"></div>
+    <div id="sidebar">
+        <h2>Flight Details</h2>
+        <p id="flight-number">Flight Number: N/A</p>
+        <p id="airline-country">Airline/Country: N/A</p>
+        <p id="altitude">Altitude: N/A</p>
+        <p id="speed">Speed: N/A</p>
+        <p id="heading">Heading: N/A</p>
+        <p id="live-count">Live Flights: 0</p>
+    </div>
+    <input type="text" id="search-box" placeholder="Search Flight Number">
+    <script src="script.js"></script>
 </body>
 </html>
