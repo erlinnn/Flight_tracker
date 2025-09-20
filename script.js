@@ -9,10 +9,6 @@ globe.pointOfView({ lat: 0, lng: 0, altitude: 2.5 }, 0);
 globe.controls().autoRotate = true;
 globe.controls().autoRotateSpeed = 0.5;
 
-// API Credentials
-const openSkyClientId = 'antony_paul123-api-client';
-const openSkyClientSecret = 'ExUdIu0SnhB3X6BVNcr8Z4EyqJ3EN9LE';
-
 // Load 3D Plane Model
 let planeModel;
 const loader = new THREE.GLTFLoader();
@@ -33,37 +29,9 @@ loader.load('assets/plane.glb', (gltf) => {
 let flightData = [];
 let prevFlightData = {};
 
-async function getOpenSkyToken() {
-    try {
-        const response = await fetch('https://cors-anywhere.herokuapp.com/https://opensky-network.org/api/auth/v1/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                'grant_type': 'client_credentials',
-                'client_id': openSkyClientId,
-                'client_secret': openSkyClientSecret,
-            }),
-        });
-        const data = await response.json();
-        console.log('OpenSky token fetched:', data.access_token ? 'Success' : 'Failed');
-        return data.access_token;
-    } catch (error) {
-        console.error('Error fetching OpenSky token:', error);
-        return null;
-    }
-}
-
 async function fetchFlightData() {
-    const token = await getOpenSkyToken();
-    if (!token) {
-        console.error('No token, cannot fetch flight data');
-        return;
-    }
-
     try {
-        const response = await fetch(`https://cors-anywhere.herokuapp.com/https://opensky-network.org/api/states/all`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
+        const response = await fetch('https://opensky-network.org/api/states/all');
         const data = await response.json();
         flightData = data.states
             .map(state => ({
@@ -184,10 +152,6 @@ document.getElementById('search-box').addEventListener('input', (e) => {
         showFlightDetails(matchingFlight);
     }
 });
-
-// Day/Night Overlay disabled due to API issues
-// async function fetchDayNightData() { ... }
-// async function updateDayNightOverlay() { ... }
 
 // Start
 fetchFlightData();
