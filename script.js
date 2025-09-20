@@ -1,6 +1,6 @@
-// Initialize Globe with normal Earth texture
+// Initialize Globe
 const globe = Globe()
-    .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg') // Normal blue/green Earth
+    .globeImageUrl('//unpkg.com/three-globe/example/img/earth-dark.jpg')
     .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
     .backgroundColor('#000000')
     (document.getElementById('globeViz'));
@@ -19,15 +19,11 @@ let planeModel;
 const loader = new THREE.GLTFLoader();
 loader.load('assets/plane.glb', (gltf) => {
     planeModel = gltf.scene;
-    planeModel.scale.set(0.01, 0.01, 0.01); // Slightly larger for visibility
-    console.log('Plane model loaded successfully');
+    planeModel.scale.set(0.01, 0.01, 0.01);
+    console.log('Plane model loaded');
 }, undefined, (error) => {
     console.error('Error loading plane model:', error);
-    planeModel = new THREE.Mesh(
-        new THREE.SphereGeometry(0.02), // Larger, bright yellow fallback
-        new THREE.MeshBasicMaterial({ color: 0xffff00 })
-    );
-    console.log('Using yellow sphere fallback for planes');
+    planeModel = new THREE.Mesh(new THREE.SphereGeometry(0.01), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 });
 
 // Flight Data Handling
@@ -46,7 +42,6 @@ async function getOpenSkyToken() {
             }),
         });
         const data = await response.json();
-        console.log('OpenSky token fetched:', data.access_token ? 'Success' : 'Failed');
         return data.access_token;
     } catch (error) {
         console.error('Error fetching OpenSky token:', error);
@@ -56,33 +51,28 @@ async function getOpenSkyToken() {
 
 async function fetchFlightData() {
     const token = await getOpenSkyToken();
-    if (!token) {
-        console.error('No token, cannot fetch flight data');
-        return;
-    }
+    if (!token) return;
 
     try {
         const response = await fetch('https://opensky-network.org/api/states/all', {
             headers: { 'Authorization': `Bearer ${token}` },
         });
         const data = await response.json();
-        flightData = data.states
-            .map(state => ({
-                icao24: state[0],
-                callsign: state[1] ? state[1].trim() : 'Unknown',
-                origin_country: state[2],
-                longitude: state[5],
-                latitude: state[6],
-                baro_altitude: state[7],
-                velocity: state[9],
-                true_track: state[10],
-            }))
-            .filter(flight => flight.latitude && flight.longitude && flight.baro_altitude)
-            .slice(0, 500); // Limit for performance
-        console.log(`Fetched ${flightData.length} flights`, flightData.slice(0, 2)); // Log sample data
+        flightData = data.states.map(state => ({
+            icao24: state[0],
+            callsign: state[1] ? state[1].trim() : 'Unknown',
+            origin_country: state[2],
+            longitude: state[5],
+            latitude: state[6],
+            baro_altitude: state[7],
+            velocity: state[9],
+            true_track: state[10],
+        })).filter(flight => flight.latitude && flight.longitude && flight.baro_altitude).slice(0, 500); // Limit for performance
+        console.log(`Fetched ${flightData.length} flights`);
         updateLiveCount();
         updatePlanes();
 
+        // Update prevFlightData
         flightData.forEach(flight => {
             prevFlightData[flight.icao24] = { ...flight, timestamp: Date.now() };
         });
@@ -97,24 +87,15 @@ async function fetchFlightData() {
 // Plane Layer
 const planesLayer = globe.customLayerData([])
     .customThreeObject(d => {
-        if (!planeModel) {
-            console.error('Plane model not loaded yet');
-            return new THREE.Mesh(
-                new THREE.SphereGeometry(0.02),
-                new THREE.MeshBasicMaterial({ color: 0xffff00 })
-            );
-        }
         const obj = planeModel.clone();
         obj.rotation.y = Math.PI / 2 + (d.true_track * Math.PI / 180);
-        console.log('Placed plane at:', d.latitude, d.longitude); // Debug placement
         return obj;
     })
     .customThreeObjectUpdate((obj, d) => {
-        globe.setObjLatLngAlt(obj, d.latitude, d.longitude, d.baro_altitude / 500000); // Adjusted altitude
+        globe.setObjLatLngAlt(obj, d.latitude, d.longitude, d.baro_altitude / 1000000);
     });
 
 function updatePlanes() {
-    console.log('Updating planes layer with', flightData.length, 'flights');
     planesLayer.customLayerData(flightData);
 }
 
@@ -140,10 +121,9 @@ function interpolatePositions() {
     requestAnimationFrame(interpolatePositions);
 }
 
-// Click and Hover Interactions
+// Interactions
 planesLayer.onClick((d) => {
-    console.log('Clicked plane:', d);
-    globe.pointOfView({ lat: d.latitude, lng: d.longitude, altitude: 0.3 }, 1000);
+    globe.pointOfView({ lat: d.latitude, lng: d.longitude, altitude: 0.5 }, 1000);
     showFlightDetails(d);
 });
 
@@ -178,17 +158,16 @@ document.getElementById('search-box').addEventListener('input', (e) => {
     const query = e.target.value.toUpperCase().trim();
     const matchingFlight = flightData.find(f => f.callsign === query);
     if (matchingFlight) {
-        console.log('Found flight:', matchingFlight);
-        globe.pointOfView({ lat: matchingFlight.latitude, lng: matchingFlight.longitude, altitude: 0.3 }, 1000);
+        globe.pointOfView({ lat: matchingFlight.latitude, lng: matchingFlight.longitude, altitude: 0.5 }, 1000);
         showFlightDetails(matchingFlight);
     }
 });
 
-// Day/Night Overlay (Optional, subtle)
+// Day/Night Overlay (OpenWeatherMap)
 async function fetchDayNightData() {
     const latLngGrid = [
         { lat: 0, lon: 0 }, { lat: 0, lon: 90 }, { lat: 0, lon: -90 },
-        { lat: 45, lon: 0 }, { lat: -45, lon: 0 },
+        { lat: 45, lon: 0 }, { lat: -45, lon: 0 }, { lat: 45, lon: 90 }, { lat: -45, lon: -90 },
     ];
     const dayNightData = [];
 
@@ -209,9 +188,8 @@ async function fetchDayNightData() {
 
 async function updateDayNightOverlay() {
     const data = await fetchDayNightData();
-    console.log('Day/night data:', data);
     globe.hexPolygonsData(data)
-        .hexPolygonColor(d => d.isDay ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 50, 0.1)')
+        .hexPolygonColor(d => d.isDay ? 'rgba(255, 255, 0, 0.3)' : 'rgba(0, 0, 50, 0.3)')
         .hexPolygonResolution(3)
         .hexPolygonMargin(0.1);
 }
@@ -221,4 +199,4 @@ fetchFlightData();
 setInterval(fetchFlightData, 10000);
 requestAnimationFrame(interpolatePositions);
 updateDayNightOverlay();
-setInterval(updateDayNightOverlay, 300000);
+setInterval(updateDayNightOverlay, 300000); // Update every 5 minutes
