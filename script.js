@@ -1,6 +1,6 @@
-// Initialize Globe
+// Initialize Globe with normal Earth texture
 const globe = Globe()
-    .globeImageUrl('//unpkg.com/three-globe/example/img/earth-dark.jpg')
+    .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg') // Normal blue/green Earth
     .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
     .backgroundColor('#000000')
     (document.getElementById('globeViz'));
@@ -14,16 +14,16 @@ const openSkyClientId = 'antony_paul123-api-client';
 const openSkyClientSecret = 'ExUdIu0SnhB3X6BVNcr8Z4EyqJ3EN9LE';
 const openWeatherApiKey = 'ea99cd3d8aeeb401f9dc4ab3202326f6';
 
-// Load 3D Plane Model
+// Load 3D Plane Model (small scale for flying effect)
 let planeModel;
 const loader = new THREE.GLTFLoader();
 loader.load('assets/plane.glb', (gltf) => {
     planeModel = gltf.scene;
-    planeModel.scale.set(0.01, 0.01, 0.01);
+    planeModel.scale.set(0.005, 0.005, 0.005); // Smaller planes
     console.log('Plane model loaded');
 }, undefined, (error) => {
     console.error('Error loading plane model:', error);
-    planeModel = new THREE.Mesh(new THREE.SphereGeometry(0.01), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    planeModel = new THREE.Mesh(new THREE.SphereGeometry(0.005), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 });
 
 // Flight Data Handling
@@ -67,12 +67,11 @@ async function fetchFlightData() {
             baro_altitude: state[7],
             velocity: state[9],
             true_track: state[10],
-        })).filter(flight => flight.latitude && flight.longitude && flight.baro_altitude).slice(0, 500); // Limit for performance
+        })).filter(flight => flight.latitude && flight.longitude && flight.baro_altitude).slice(0, 500);
         console.log(`Fetched ${flightData.length} flights`);
         updateLiveCount();
         updatePlanes();
 
-        // Update prevFlightData
         flightData.forEach(flight => {
             prevFlightData[flight.icao24] = { ...flight, timestamp: Date.now() };
         });
@@ -84,7 +83,7 @@ async function fetchFlightData() {
     }
 }
 
-// Plane Layer
+// Plane Layer (small 3D planes)
 const planesLayer = globe.customLayerData([])
     .customThreeObject(d => {
         const obj = planeModel.clone();
@@ -92,7 +91,7 @@ const planesLayer = globe.customLayerData([])
         return obj;
     })
     .customThreeObjectUpdate((obj, d) => {
-        globe.setObjLatLngAlt(obj, d.latitude, d.longitude, d.baro_altitude / 1000000);
+        globe.setObjLatLngAlt(obj, d.latitude, d.longitude, d.baro_altitude / 800000); // Adjusted for smaller appearance
     });
 
 function updatePlanes() {
@@ -103,7 +102,7 @@ function updateLiveCount() {
     document.getElementById('live-count').textContent = `Live Flights: ${flightData.length}`;
 }
 
-// Smooth Interpolation
+// Smooth Interpolation for flying effect
 function interpolatePositions() {
     const now = Date.now();
     flightData.forEach(flight => {
@@ -121,20 +120,20 @@ function interpolatePositions() {
     requestAnimationFrame(interpolatePositions);
 }
 
-// Interactions
+// Click and Hover Interactions
 planesLayer.onClick((d) => {
-    globe.pointOfView({ lat: d.latitude, lng: d.longitude, altitude: 0.5 }, 1000);
+    globe.pointOfView({ lat: d.latitude, lng: d.longitude, altitude: 0.3 }, 1000); // Closer zoom
     showFlightDetails(d);
 });
 
 planesLayer.onHover((d) => {
     if (d) {
         const obj = planesLayer.getCustomThreeObject(d);
-        obj.scale.set(0.02, 0.02, 0.02);
+        obj.scale.set(0.01, 0.01, 0.01); // Slightly larger on hover
     }
     globe.scene().traverse(child => {
         if (child.userData && child.userData.hoverOut) {
-            child.scale.set(0.01, 0.01, 0.01);
+            child.scale.set(0.005, 0.005, 0.005);
         }
     });
 });
@@ -158,16 +157,16 @@ document.getElementById('search-box').addEventListener('input', (e) => {
     const query = e.target.value.toUpperCase().trim();
     const matchingFlight = flightData.find(f => f.callsign === query);
     if (matchingFlight) {
-        globe.pointOfView({ lat: matchingFlight.latitude, lng: matchingFlight.longitude, altitude: 0.5 }, 1000);
+        globe.pointOfView({ lat: matchingFlight.latitude, lng: matchingFlight.longitude, altitude: 0.3 }, 1000);
         showFlightDetails(matchingFlight);
     }
 });
 
-// Day/Night Overlay (OpenWeatherMap)
+// Day/Night Overlay (Optional, subtle)
 async function fetchDayNightData() {
     const latLngGrid = [
         { lat: 0, lon: 0 }, { lat: 0, lon: 90 }, { lat: 0, lon: -90 },
-        { lat: 45, lon: 0 }, { lat: -45, lon: 0 }, { lat: 45, lon: 90 }, { lat: -45, lon: -90 },
+        { lat: 45, lon: 0 }, { lat: -45, lon: 0 },
     ];
     const dayNightData = [];
 
@@ -189,7 +188,7 @@ async function fetchDayNightData() {
 async function updateDayNightOverlay() {
     const data = await fetchDayNightData();
     globe.hexPolygonsData(data)
-        .hexPolygonColor(d => d.isDay ? 'rgba(255, 255, 0, 0.3)' : 'rgba(0, 0, 50, 0.3)')
+        .hexPolygonColor(d => d.isDay ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 50, 0.1)') // Subtle overlay
         .hexPolygonResolution(3)
         .hexPolygonMargin(0.1);
 }
@@ -199,4 +198,4 @@ fetchFlightData();
 setInterval(fetchFlightData, 10000);
 requestAnimationFrame(interpolatePositions);
 updateDayNightOverlay();
-setInterval(updateDayNightOverlay, 300000); // Update every 5 minutes
+setInterval(updateDayNightOverlay, 300000);
