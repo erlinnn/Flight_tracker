@@ -16,6 +16,7 @@ loader.load('assets/plane.glb', (gltf) => {
     planeModel = gltf.scene;
     planeModel.scale.set(0.02, 0.02, 0.02); // Small but visible
     console.log('Plane model loaded successfully');
+    updatePlanes(); // Update planes once model is loaded
 }, undefined, (error) => {
     console.error('Error loading plane model:', error);
     planeModel = new THREE.Mesh(
@@ -23,6 +24,7 @@ loader.load('assets/plane.glb', (gltf) => {
         new THREE.MeshBasicMaterial({ color: 0xffff00 })
     );
     console.log('Using yellow sphere fallback for planes');
+    updatePlanes(); // Update planes with fallback
 });
 
 // Flight Data Handling
@@ -49,7 +51,6 @@ async function fetchFlightData() {
         console.log(`Fetched ${flightData.length} flights`, flightData.slice(0, 2));
         updateLiveCount();
         updatePlanes();
-
         flightData.forEach(flight => {
             prevFlightData[flight.icao24] = { ...flight, timestamp: Date.now() };
         });
@@ -77,7 +78,10 @@ const planesLayer = globe.customLayerData([])
         return obj;
     })
     .customThreeObjectUpdate((obj, d) => {
-        globe.setObjLatLngAlt(obj, d.latitude, d.longitude, d.baro_altitude / 500000);
+        // Use manual positioning since setObjLatLngAlt is unavailable
+        const { x, y, z } = globe.getCoords(d.latitude, d.longitude, d.baro_altitude / 500000);
+        obj.position.set(x, y, z);
+        obj.rotation.y = Math.PI / 2 + (d.true_track * Math.PI / 180); // Update rotation
     });
 
 function updatePlanes() {
