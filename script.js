@@ -6,8 +6,8 @@ const globe = Globe()
     (document.getElementById('globeViz'));
 
 globe.pointOfView({ lat: 0, lng: 0, altitude: 2.5 }, 0);
-globe.controls().autoRotate = true;
-globe.controls().autoRotateSpeed = 0.5;
+globe.controls().autoRotate = false; // Disable automatic rotation
+globe.controls().autoRotateSpeed = 0.5; // Kept for manual control if enabled later
 
 // Load 3D Plane Model
 let planeModel;
@@ -114,7 +114,7 @@ function interpolatePositions() {
 
 // Click and Hover Interactions
 globe.onObjectClick((obj, event, { lat, lng, altitude }) => {
-    const flight = flightData.find(f => f.latitude === lat && f.longitude === lng);
+    const flight = flightData.find(f => Math.abs(f.latitude - lat) < 0.1 && Math.abs(f.longitude - lng) < 0.1);
     if (flight) {
         console.log('Clicked plane:', flight);
         globe.pointOfView({ lat: flight.latitude, lng: flight.longitude, altitude: 0.3 }, 1000);
@@ -134,14 +134,17 @@ globe.onObjectHover((obj) => {
 });
 
 function showFlightDetails(flight) {
-    document.getElementById('flight-number').textContent = `Flight Number: ${flight.callsign}`;
-    document.getElementById('airline-country').textContent = `Airline/Country: ${flight.origin_country}`;
+    document.getElementById('flight-number').textContent = `Flight Number: ${flight.callsign || 'N/A'}`;
+    document.getElementById('airline-country').textContent = `Airline/Country: ${flight.origin_country || 'Unknown'}`;
     document.getElementById('altitude').textContent = `Altitude: ${(flight.baro_altitude * 3.28084).toFixed(0)} ft`;
     document.getElementById('speed').textContent = `Speed: ${(flight.velocity * 3.6).toFixed(0)} km/h`;
-    document.getElementById('heading').textContent = `Heading: ${flight.true_track.toFixed(0)}° (${degreesToCompass(flight.true_track)})`;
+    document.getElementById('heading').textContent = `Heading: ${flight.true_track.toFixed(0)}° (${degreesToCompass(flight.true_track) || 'N/A'})`;
+    document.getElementById('origin').textContent = `Origin: ${flight.origin_country || 'Unknown'}`; // Best available proxy
+    document.getElementById('destination').textContent = `Destination: N/A`; // Not available from OpenSky state API
 }
 
 function degreesToCompass(degrees) {
+    if (degrees === undefined || isNaN(degrees)) return 'N/A';
     const val = Math.floor((degrees / 22.5) + 0.5);
     const arr = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
     return arr[(val % 16)];
